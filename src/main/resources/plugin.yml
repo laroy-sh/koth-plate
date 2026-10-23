@@ -5,6 +5,10 @@ api-version: '1.20'
 author: mio-openliven
 depend:
   - Vault
+# Load after common economy plugins so their Vault provider is usually registered first.
+softdepend:
+  - Essentials
+  - CMI
 commands:
   koth:
     description: Manage the King of the Hill capture point.

@@ -29,13 +29,6 @@ public final class KothPlatePlugin extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
-        Economy economy = resolveEconomy();
-        if (economy == null) {
-            getLogger().severe("[KingOfTheHill] Vault или плагин экономики не найдены! Выключение...");
-            Bukkit.getPluginManager().disablePlugin(this);
-            return;
-        }
-
         settingsLoader = new SettingsLoader(this);
         messages = new MessageService(this);
         settings = settingsLoader.load();
@@ -43,7 +36,7 @@ public final class KothPlatePlugin extends JavaPlugin {
         plates = new PlateService();
         captures = new CaptureService(
                 this,
-                new VaultEconomyService(economy),
+                new VaultEconomyService(this::resolveEconomy),
                 messages,
                 new VisualEffectService(getLogger()),
                 new AfterRewardActionService(),
@@ -63,6 +56,10 @@ public final class KothPlatePlugin extends JavaPlugin {
         command.setTabCompleter(commandHandler);
 
         Bukkit.getPluginManager().registerEvents(new CaptureListener(this, captures), this);
+
+        // Economy plugins (EssentialsX, CMI, ...) may register their Vault provider after we enable.
+        // Delayed tasks run once every plugin has enabled, so check the provider then instead of now.
+        Bukkit.getScheduler().runTask(this, this::verifyEconomyAvailable);
     }
 
     @Override
@@ -88,6 +85,19 @@ public final class KothPlatePlugin extends JavaPlugin {
         settings = settingsLoader.load();
         messages.load(settings.language());
         captures.updateSettings(settings);
+    }
+
+    private void verifyEconomyAvailable() {
+        if (!isEnabled()) {
+            return;
+        }
+        Economy economy = resolveEconomy();
+        if (economy == null) {
+            getLogger().severe("[KingOfTheHill] Vault или плагин экономики не найдены! Выключение...");
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+        getLogger().info("Using economy provider: " + economy.getName());
     }
 
     private Economy resolveEconomy() {
